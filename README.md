@@ -45,11 +45,21 @@ clang -O2 bench/c/fib.c -o /tmp/fib && /tmp/fib
 
 Numeric kernels in a dynamic language are not expected to match `gcc -O2`; compare **interp vs JIT** first.
 
+## Quick benchmark
+
+```bash
+make
+./scripts/bench.sh bench/fib.tl
+```
+
+See [docs/APPLICATION.md](docs/APPLICATION.md) for how to describe this on college apps.
+
 ## Roadmap
 
 - [x] Bytecode VM
 - [x] Invocation profiling + template JIT + W^X code cache
-- [x] Patch direct calls to JIT entry (when callee is already compiled)
+- [x] Stack-slot template JIT for arity-1 arithmetic kernels (`add1`, `identity`; `fib` stays interpreter until branches JIT)
+- [ ] Direct call-site patching to JIT entry (calls use runtime helper today)
 - [ ] Inline caches for dynamic dispatch
 - [ ] Linear-scan regalloc on thin LIR
 - [ ] Safepoints + deopt

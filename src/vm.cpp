@@ -38,6 +38,8 @@ extern "C" double tinylang_jit_call1(VM* vm, int fn_index, double arg0) {
   return vm->call_function(fn_index, {arg0});
 }
 
+extern "C" double tinylang_jit_bool_lt(double a, double b) { return (a < b) ? 1.0 : 0.0; }
+
 Value VM::call_function(int fn_index, const std::vector<Value>& args) {
   FunctionObj& fn = functions_.at(fn_index);
   if (args.size() != static_cast<std::size_t>(fn.chunk.arity)) {

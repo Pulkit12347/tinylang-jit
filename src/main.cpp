@@ -31,7 +31,7 @@ int main(int argc, char** argv) {
   std::string path = argv[1];
   bool interp_only = false;
   bool bench = false;
-  uint32_t threshold = 32;
+  uint32_t threshold = 8;
 
   for (int i = 2; i < argc; ++i) {
     std::string arg = argv[i];
