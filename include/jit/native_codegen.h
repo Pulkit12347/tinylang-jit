@@ -23,7 +23,7 @@ class NativeEmitter {
   void emit_fcmp_d0_zero();
   std::size_t emit_branch_eq_placeholder();
   void patch_branch_eq_to(std::size_t branch_insn_offset, std::size_t target_offset);
-  void emit_bl_helper_d0_d1(void* fn_ptr);
+  void emit_call_fn_d0_d1(void* fn_ptr);
   void emit_load_zero_to_d1();
 
   void emit_load_double_to_d0(uint64_t ieee_bits);
@@ -51,7 +51,7 @@ class NativeEmitter {
 #if defined(__aarch64__)
   void emit_load_x0(uint64_t ptr);
   void emit_load_x16(uint64_t ptr);
-  void emit_mov_w1(int fn_index);
+  void emit_mov_x1(int fn_index);
 #endif
 };
 

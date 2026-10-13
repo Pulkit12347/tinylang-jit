@@ -67,9 +67,15 @@ void NativeEmitter::patch_branch_eq_to(std::size_t branch_insn_offset, std::size
   std::memcpy(bytes_.data() + branch_insn_offset, &insn, 4);
 }
 
-void NativeEmitter::emit_bl_helper_d0_d1(void* fn_ptr) {
+void NativeEmitter::emit_call_fn_d0_d1(void* fn_ptr) {
+  emit_u32(0xf81f0fe8);  // str d8, [sp, #-16]!
   emit_load_x16(reinterpret_cast<uint64_t>(fn_ptr));
   emit_u32(0xd63f0200);
+  emit_u32(0xf84107e8);  // ldr d8, [sp], #16
+}
+
+void NativeEmitter::emit_fcsel_d0_d2_d3_if_lt() {
+  emit_u32(0x1e8c2040);  // fcsel d0, d2, d3, mi
 }
 
 void NativeEmitter::emit_epilogue_arity1() {
@@ -88,11 +94,6 @@ void NativeEmitter::emit_load_double_to_reg(int d_reg, uint64_t ieee_bits) {
 }
 
 void NativeEmitter::emit_load_double_to_d0(uint64_t ieee_bits) { emit_load_double_to_reg(0, ieee_bits); }
-
-void NativeEmitter::emit_fcsel_d0_d2_d3_if_lt() {
-  // fcsel d0, d2, d3, mi  (1.0 if d0<d1 else 0.0; operands set before fcmp)
-  emit_u32(0x1e88c040);
-}
 
 void NativeEmitter::emit_mov_d0_from_local0() { emit_u32(0x1e624100); }
 void NativeEmitter::emit_mov_d1_from_local0() { emit_u32(0x1e624101); }
@@ -133,16 +134,16 @@ void NativeEmitter::emit_load_x16(uint64_t ptr) {
   emit_literal_u64(ptr);
 }
 
-void NativeEmitter::emit_mov_w1(int fn_index) {
+void NativeEmitter::emit_mov_x1(int fn_index) {
   uint32_t imm = static_cast<uint32_t>(fn_index) & 0xffffu;
-  emit_u32(0x52800001u | (imm << 5));
+  emit_u32(0xd2800001u | (imm << 5));  // mov x1, #imm
 }
 
 void NativeEmitter::emit_call_jit_helper(void* helper, void* vm, int fn_index) {
   emit_u32(0xf81f0fe8);  // str d8, [sp, #-16]!
 
   emit_load_x0(reinterpret_cast<uint64_t>(vm));
-  emit_mov_w1(fn_index);
+  emit_mov_x1(fn_index);
   // d0 already holds argument
 
   emit_load_x16(reinterpret_cast<uint64_t>(helper));

@@ -21,9 +21,9 @@ Built tinylang-jit: bytecode VM + profiling JIT to AArch64; mmap W^X code cache;
 
 ```bash
 make
-./scripts/bench.sh bench/fib.tl
+./scripts/bench_all.sh
 ```
 
 ## What’s next (if asked)
 
-Inline caches for dynamic dispatch, safepoints/deopt, linear-scan regalloc, OSR for hot loops.
+Native JIT for control-flow (`fib`), call-site patching, inline caches, safepoints/deopt, linear-scan on thin LIR, OSR. See [ROADMAP.md](ROADMAP.md).

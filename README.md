@@ -49,10 +49,10 @@ Numeric kernels in a dynamic language are not expected to match `gcc -O2`; compa
 
 ```bash
 make
-./scripts/bench.sh bench/fib.tl
+./scripts/bench_all.sh
 ```
 
-See [docs/APPLICATION.md](docs/APPLICATION.md) for how to describe this on college apps.
+See [docs/APPLICATION.md](docs/APPLICATION.md) for college apps and [docs/ROADMAP.md](docs/ROADMAP.md) for what is done vs planned.
 
 ## Roadmap
 

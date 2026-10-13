@@ -23,12 +23,10 @@ static bool compile_supported(const Chunk& chunk) {
       case Op::OP_CALL:
       case Op::OP_RETURN:
       case Op::OP_NEG:
-        break;
-      // Control-flow lowering is interpreter-only until branch codegen is finished.
       case Op::OP_LT:
       case Op::OP_JMP:
       case Op::OP_JMP_IF_FALSE:
-        return false;
+        return false;  // see docs/ROADMAP.md — interpreter fallback
       default:
         return false;
     }

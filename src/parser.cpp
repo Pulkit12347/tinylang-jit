@@ -134,6 +134,16 @@ void Parser::parse_statement(Chunk& chunk) {
     parse_var_decl(chunk);
     return;
   }
+  if (check(TokenType::Identifier) && current_ + 1 < tokens_.size() &&
+      tokens_.at(current_ + 1).type == TokenType::Assign) {
+    Token name = consume(TokenType::Identifier, "expected variable name");
+    consume(TokenType::Assign, "expected '='");
+    int slot = resolve_local(chunk, name.lexeme);
+    parse_expression(chunk);
+    emit(chunk, Op::OP_SET_LOCAL, slot);
+    match(TokenType::Semicolon);
+    return;
+  }
   if (match(TokenType::If)) {
     parse_if(chunk);
     return;
@@ -155,7 +165,6 @@ void Parser::parse_var_decl(Chunk& chunk) {
   int slot = add_local(chunk, name.lexeme);
   parse_expression(chunk);
   emit(chunk, Op::OP_SET_LOCAL, slot);
-  emit(chunk, Op::OP_POP, 0);
   match(TokenType::Semicolon);
 }
 

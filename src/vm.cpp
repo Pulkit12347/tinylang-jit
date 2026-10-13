@@ -35,6 +35,13 @@ bool VM::maybe_compile(int fn_index) {
 }
 
 extern "C" double tinylang_jit_call1(VM* vm, int fn_index, double arg0) {
+  FunctionObj& target = vm->function(fn_index);
+#if defined(__aarch64__)
+  if (target.native_entry && target.chunk.arity == 1) {
+    auto native = reinterpret_cast<double (*)(double)>(target.native_entry);
+    return native(arg0);
+  }
+#endif
   return vm->call_function(fn_index, {arg0});
 }
 
@@ -59,6 +66,9 @@ Value VM::call_function(int fn_index, const std::vector<Value>& args) {
   size_t stack_base = stack_.size();
   for (Value v : args) stack_.push_back(v);
   frames_.push_back({fn_index, 0, stack_base});
+  for (int i = fn.chunk.arity; i < fn.chunk.local_count; ++i) {
+    stack_.push_back(0.0);
+  }
 
   Value result = 0;
   while (!frames_.empty()) {
