@@ -1,3 +1,4 @@
+#include "bytecode.h"
 #include "lexer.h"
 #include "parser.h"
 #include "vm.h"
@@ -24,13 +25,14 @@ std::string read_file(const std::string& path) {
 
 int main(int argc, char** argv) {
   if (argc < 2) {
-    std::cerr << "usage: tinylang <file.tl> [--interp] [--jit] [--jit-threshold N] [--bench]\n";
+    std::cerr << "usage: tinylang <file.tl> [--interp] [--jit] [--jit-threshold N] [--bench] [--disasm]\n";
     return 1;
   }
 
   std::string path = argv[1];
   bool interp_only = false;
   bool bench = false;
+  bool disasm = false;
   uint32_t threshold = 8;
 
   for (int i = 2; i < argc; ++i) {
@@ -38,6 +40,7 @@ int main(int argc, char** argv) {
     if (arg == "--interp") interp_only = true;
     else if (arg == "--jit") interp_only = false;
     else if (arg == "--bench") bench = true;
+    else if (arg == "--disasm") disasm = true;
     else if (arg == "--jit-threshold" && i + 1 < argc) threshold = static_cast<uint32_t>(std::stoi(argv[++i]));
     else {
       std::cerr << "unknown arg: " << arg << "\n";
@@ -50,6 +53,17 @@ int main(int argc, char** argv) {
   auto tokens = lexer.tokenize();
   tinylang::Parser parser(tokens);
   tinylang::Program program = parser.parse();
+
+  if (disasm) {
+    for (const auto& chunk : program.functions) {
+      std::cout << "fn " << chunk.name << " arity=" << chunk.arity << " locals=" << chunk.local_count << "\n";
+      for (std::size_t ip = 0; ip < chunk.code.size(); ++ip) {
+        const auto& ins = chunk.code[ip];
+        std::cout << "  " << ip << " " << tinylang::op_name(ins.op) << " " << ins.operand << "\n";
+      }
+    }
+    return 0;
+  }
 
   std::vector<tinylang::FunctionObj> functions;
   functions.reserve(program.functions.size());

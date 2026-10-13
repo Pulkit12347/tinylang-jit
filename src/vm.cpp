@@ -1,14 +1,25 @@
 #include "vm.h"
 
-#include "jit/code_cache.h"
+#include "jit/deopt.h"
+#include "jit/inline_cache.h"
 #include "jit/profile.h"
 #include "jit/runtime.h"
 #include "jit/template_jit.h"
 
 #include <iostream>
 #include <stdexcept>
+#include <unordered_map>
 
 namespace tinylang {
+
+namespace {
+std::unordered_map<uint64_t, jit::InlineCache> g_call_site_caches;
+
+uint64_t call_site_key(int caller_fn, size_t call_insn_index) {
+  return (static_cast<uint64_t>(static_cast<uint32_t>(caller_fn)) << 32) |
+         static_cast<uint32_t>(call_insn_index);
+}
+}  // namespace
 
 VM::VM(std::vector<FunctionObj>&& functions, int entry_function_index)
     : functions_(std::move(functions)), entry_function_index_(entry_function_index) {
@@ -29,7 +40,6 @@ bool VM::maybe_compile(int fn_index) {
   fn.compiling = false;
   if (!entry) return false;
   fn.native_entry = entry;
-  jit::global_code_cache().finalize();
   return true;
 #endif
 }
@@ -148,6 +158,7 @@ Value VM::call_function(int fn_index, const std::vector<Value>& args) {
         break;
       }
       case Op::OP_CALL: {
+        const size_t call_insn = frame.ip - 1;
         int callee = ins.operand;
         FunctionObj& target = functions_.at(callee);
         int arity = target.chunk.arity;
@@ -158,18 +169,39 @@ Value VM::call_function(int fn_index, const std::vector<Value>& args) {
         std::vector<Value> call_args(stack_.begin() + arg_base, stack_.end());
         stack_.resize(arg_base);
 
+        jit::record_safepoint();
         profile_on_call(target, jit_threshold_);
         if (jit_enabled_) maybe_compile(callee);
 
 #if defined(__aarch64__)
-        if (jit_enabled_ && target.native_entry && target.chunk.arity == 1) {
-          auto native = reinterpret_cast<double (*)(double)>(target.native_entry);
-          stack_.push_back(native(call_args[0]));
-          break;
+        if (jit_enabled_ && target.chunk.arity == 1) {
+          jit::InlineCache& site_cache = g_call_site_caches[call_site_key(frame.fn_index, call_insn)];
+          void* entry = nullptr;
+          for (int i = 0; i < site_cache.count; ++i) {
+            if (site_cache.fn_index[i] == callee) {
+              entry = site_cache.native[i] ? site_cache.native[i] : target.native_entry;
+              site_cache.native[i] = entry;
+              break;
+            }
+          }
+          if (!entry && target.native_entry) {
+            int slot = site_cache.count < jit::InlineCache::kMax ? site_cache.count++ : 0;
+            site_cache.fn_index[slot] = callee;
+            site_cache.native[slot] = target.native_entry;
+            entry = target.native_entry;
+          }
+          if (entry) {
+            auto native = reinterpret_cast<double (*)(double)>(entry);
+            stack_.push_back(native(call_args[0]));
+            break;
+          }
         }
 #endif
         size_t new_base = stack_.size();
         for (Value v : call_args) stack_.push_back(v);
+        for (int loc = target.chunk.arity; loc < target.chunk.local_count; ++loc) {
+          stack_.push_back(0.0);
+        }
         frames_.push_back({callee, 0, new_base});
         break;
       }

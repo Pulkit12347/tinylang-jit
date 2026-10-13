@@ -1,13 +1,14 @@
 #pragma once
 
-// Planned: monomorphic inline caches for dynamic dispatch (obj.method()).
-// Language does not expose objects yet; see docs/ROADMAP.md.
+// Polymorphic call-site cache (up to 2 targets) keyed by (caller fn, call insn).
 
 namespace tinylang::jit {
 
 struct InlineCache {
-  int cached_fn_index = -1;
-  void* cached_native = nullptr;
+  static constexpr int kMax = 2;
+  int count = 0;
+  int fn_index[kMax] = {-1, -1};
+  void* native[kMax] = {nullptr, nullptr};
 };
 
 }  // namespace tinylang::jit

@@ -10,57 +10,31 @@ source (.tl) → parser → bytecode → interpreter (tier 0)
                                 ↘ template JIT → mmap'd executable code (tier 1)
 ```
 
-## Design choices (v1)
-
-| Question | Decision |
-|----------|----------|
-| IR + SSA? | **No** — bytecode → template machine code. Add thin LIR later if OSR/deopt need it. |
-| Register allocation? | **Spill to stack** in template JIT until safepoints/deopt exist. |
-| Target ISA | **Native host**: AArch64 on Apple Silicon, x86-64 on Intel/Linux (`native_codegen.cpp`). |
-
-## Build
+## Build & run
 
 ```bash
-cmake -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build
-./build/tinylang bench/fib.tl --interp
-./build/tinylang bench/fib.tl --jit
-./build/tinylang bench/fib.tl --jit --bench
+make
+./tinylang bench/add1.tl --jit --jit-threshold 4
+./tinylang bench/call_inc.tl --jit --jit-threshold 4   # JIT call to another function
+./tinylang bench/fib.tl --interp --bench               # fib uses interpreter (no self-CALL JIT yet)
+./scripts/bench_all.sh
 ```
 
 ## Flags
 
-- `--interp` — interpreter only (no JIT)
-- `--jit` — enable profiling + JIT (default)
-- `--jit-threshold N` — compile after N invocations (default 32)
-- `--bench` — print timing for the entry call
+- `--interp` / `--jit` / `--jit-threshold N` / `--bench` / `--disasm`
 
-## Benchmarks vs gcc
+## JIT status (AArch64)
 
-C equivalents live in `bench/c/` for manual comparison:
+| Feature | Status |
+|---------|--------|
+| Arity-1 arithmetic (`add1`, `identity`) | JIT |
+| `LT` as expression (`lt_only`) | JIT |
+| `CALL` to **other** functions (`call_inc`) | JIT via runtime bridge |
+| `if` / `JMP_IF_FALSE` | Interpreter recommended |
+| Self-recursive `CALL` (`fib`) | Interpreter |
 
-```bash
-clang -O2 bench/c/fib.c -o /tmp/fib && /tmp/fib
-```
+## Docs
 
-Numeric kernels in a dynamic language are not expected to match `gcc -O2`; compare **interp vs JIT** first.
-
-## Quick benchmark
-
-```bash
-make
-./scripts/bench_all.sh
-```
-
-See [docs/APPLICATION.md](docs/APPLICATION.md) for college apps and [docs/ROADMAP.md](docs/ROADMAP.md) for what is done vs planned.
-
-## Roadmap
-
-- [x] Bytecode VM
-- [x] Invocation profiling + template JIT + W^X code cache
-- [x] Stack-slot template JIT for arity-1 arithmetic kernels (`add1`, `identity`; `fib` stays interpreter until branches JIT)
-- [ ] Direct call-site patching to JIT entry (calls use runtime helper today)
-- [ ] Inline caches for dynamic dispatch
-- [ ] Linear-scan regalloc on thin LIR
-- [ ] Safepoints + deopt
-- [ ] OSR (stretch)
+- [docs/ROADMAP.md](docs/ROADMAP.md)
+- [docs/APPLICATION.md](docs/APPLICATION.md)

@@ -18,6 +18,8 @@ class CodeCache {
 
   void finalize();  // flip mapping to RX (W^X)
 
+  static void* publish(const void* src, std::size_t size);
+
  private:
   uint8_t* base_ = nullptr;
   std::size_t capacity_ = 0;

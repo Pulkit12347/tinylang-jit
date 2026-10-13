@@ -6,7 +6,13 @@ make -C "$ROOT" -s
 echo "======== add1 (JIT-friendly) ========"
 "$ROOT/scripts/bench.sh" "$ROOT/bench/add1.tl"
 
-echo "======== fib (interpreter) ========"
+echo "======== branch (interpreter; JIT branches under review) ========"
+"$ROOT/tinylang" "$ROOT/bench/branch.tl" --interp --bench
+
+echo "======== call_inc (JIT CALL) ========"
+"$ROOT/tinylang" "$ROOT/bench/call_inc.tl" --jit --jit-threshold 4 --bench
+
+echo "======== fib (interpreter; self-CALL not JIT'd) ========"
 "$ROOT/tinylang" "$ROOT/bench/fib.tl" --interp --bench
 
 echo "======== nbody (interpreter) ========"

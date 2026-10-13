@@ -29,6 +29,8 @@ class NativeEmitter {
   void emit_load_double_to_d0(uint64_t ieee_bits);
   void emit_load_double_to_reg(int d_reg, uint64_t ieee_bits);
   void emit_fcsel_d0_d2_d3_if_lt();
+  void emit_fcsel_d0_d9_d10_if_lt();
+  void emit_fcmp_d0_d10();
   void emit_mov_d0_from_local0();
   void emit_mov_d1_from_local0();
   void emit_fadd_d0_d1();

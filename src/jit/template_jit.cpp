@@ -3,6 +3,7 @@
 #include "jit/code_cache.h"
 #include "jit/native_codegen.h"
 #include "jit/runtime.h"
+#include "jit/runtime_helpers.h"
 #include "vm.h"
 
 #include <cstring>
@@ -10,9 +11,10 @@
 
 namespace tinylang::jit {
 
-static bool compile_supported(const Chunk& chunk) {
+static bool compile_supported(const Chunk& chunk, int self_fn_index) {
   if (chunk.arity != 1) return false;
   for (const auto& ins : chunk.code) {
+    if (ins.op == Op::OP_CALL && ins.operand == self_fn_index) return false;
     switch (ins.op) {
       case Op::OP_PUSH_CONST:
       case Op::OP_PUSH_LOCAL:
@@ -26,7 +28,7 @@ static bool compile_supported(const Chunk& chunk) {
       case Op::OP_LT:
       case Op::OP_JMP:
       case Op::OP_JMP_IF_FALSE:
-        return false;  // see docs/ROADMAP.md — interpreter fallback
+        break;
       default:
         return false;
     }
@@ -40,7 +42,7 @@ void* compile_function(VM& vm, FunctionObj& fn) {
   (void)fn;
   return nullptr;
 #else
-  if (!compile_supported(fn.chunk)) return nullptr;
+  if (!compile_supported(fn.chunk, fn.id)) return nullptr;
 
   NativeEmitter emitter;
   emitter.emit_prologue_arity1();
@@ -109,10 +111,31 @@ void* compile_function(VM& vm, FunctionObj& fn) {
         emitter.emit_fneg_d0();
         emitter.emit_str_d0_sp_slot(depth - 1);
         break;
+      case Op::OP_LT: {
+        if (depth < 2) return nullptr;
+        emitter.emit_ldr_d0_sp_slot(depth - 2);
+        emitter.emit_ldr_d1_sp_slot(depth - 1);
+        emitter.emit_fcmp_d0_with_d1();
+        emitter.emit_fcsel_d0_d9_d10_if_lt();
+        emitter.emit_str_d0_sp_slot(depth - 2);
+        depth--;
+        break;
+      }
+      case Op::OP_JMP:
+        fixups.push_back({i, emitter.emit_branch_placeholder(), false});
+        break;
+      case Op::OP_JMP_IF_FALSE: {
+        if (depth < 1) return nullptr;
+        emitter.emit_ldr_d0_sp_slot(depth - 1);
+        emitter.emit_load_double_to_reg(10, 0);
+        emitter.emit_fcmp_d0_d10();
+        fixups.push_back({i, emitter.emit_branch_eq_placeholder(), true});
+        break;
+      }
       case Op::OP_CALL: {
         if (depth < 1) return nullptr;
         emitter.emit_ldr_d0_sp_slot(depth - 1);
-        emitter.emit_call_jit_helper(reinterpret_cast<void*>(tinylang_jit_call1), &vm, ins.operand);
+        emitter.emit_call_jit_helper(signed_jit_call1(), &vm, ins.operand);
         emitter.emit_str_d0_sp_slot(depth - 1);
         break;
       }
@@ -141,12 +164,7 @@ void* compile_function(VM& vm, FunctionObj& fn) {
     }
   }
 
-  CodeCache& cache = global_code_cache();
-  uint8_t* mem = cache.allocate(emitter.size());
-  std::memcpy(mem, emitter.buffer().data(), emitter.size());
-  cache.finalize();
-
-  return mem;
+  return CodeCache::publish(emitter.buffer().data(), emitter.size());
 #endif
 }
 
